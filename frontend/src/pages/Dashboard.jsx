@@ -25,7 +25,7 @@ export default function Dashboard() {
     const stats = useStats(transactions)
 
     useEffect(() => {
-        api.get('/api/settings').then(r => setSettings(r.data)).catch(() => { })
+        api.get('/api/transactions/settings').then(r => setSettings(r.data)).catch(() => { })
     }, [])
 
     const recentFive = transactions.slice(0, 5)

@@ -10,7 +10,7 @@ export default function Settings() {
     const [err, setErr] = useState('')
 
     useEffect(() => {
-        api.get('/api/settings').then(r => {
+        api.get('/api/transactions/settings').then(r => {
             setForm({ income: r.data.income ?? '', savings_goal: r.data.savings_goal ?? '' })
         }).catch(() => { })
     }, [])
@@ -20,7 +20,7 @@ export default function Settings() {
         setSaved(false)
         setLoading(true)
         try {
-            await api.post('/api/settings', {
+            await api.post('/api/transactions/settings', {
                 income: Number(form.income),
                 savings_goal: Number(form.savings_goal),
             })
