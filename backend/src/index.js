@@ -1,76 +1,48 @@
-const express = require('express')
-const cors = require('cors')
 require('dotenv').config()
 
+const express = require('express')
+const cors = require('cors')
+const transactionRoutes = require('./routes/transactionRoutes')
+const statsRoutes = require('./routes/statsRoutes')
+
 const app = express()
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }))
+const PORT = process.env.PORT || 5000
+
+// ── Middleware ───────────────────────────────────────────────────
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}))
+
 app.use(express.json())
 
-const { createClient } = require('@supabase/supabase-js')
-const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-
-// ── Auth middleware ──────────────────────────────────────────────
-async function auth(req, res, next) {
-    const token = req.headers.authorization?.split(' ')[1]
-    if (!token) return res.status(401).json({ message: 'Unauthorized' })
-    const { data, error } = await supabaseAdmin.auth.getUser(token)
-    if (error || !data.user) return res.status(401).json({ message: 'Unauthorized' })
-    req.user = data.user
-    next()
+// ── Request logger (dev) ─────────────────────────────────────────
+if (process.env.NODE_ENV !== 'production') {
+    app.use((req, _res, next) => {
+        console.log(`${req.method} ${req.originalUrl}`)
+        next()
+    })
 }
 
-// ── Transactions ─────────────────────────────────────────────────
-app.get('/api/transactions', auth, async (req, res) => {
-    const { data, error } = await supabaseAdmin
-        .from('transactions')
-        .select('*')
-        .eq('user_id', req.user.id)
-        .order('date', { ascending: false })
-    if (error) return res.status(500).json({ message: error.message })
-    res.json(data)
+// ── Routes ───────────────────────────────────────────────────────
+app.use('/api/transactions', transactionRoutes)
+app.use('/api/stats', statsRoutes)
+
+// Health check
+app.get('/health', (_req, res) => res.json({ status: 'ok' }))
+
+// ── Global error handler ─────────────────────────────────────────
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
+    console.error(err)
+    res.status(500).json({ message: err.message || 'Internal server error' })
 })
 
-app.post('/api/transactions', auth, async (req, res) => {
-    const { amount, item, category, date, note } = req.body
-    if (!amount || !item) return res.status(400).json({ message: 'amount and item required' })
-    const { data, error } = await supabaseAdmin
-        .from('transactions')
-        .insert([{ user_id: req.user.id, amount: Number(amount), item, category, date, note }])
-        .select()
-        .single()
-    if (error) return res.status(500).json({ message: error.message })
-    res.status(201).json(data)
-})
+// 404 fallback
+app.use((_req, res) => res.status(404).json({ message: 'Route not found' }))
 
-app.delete('/api/transactions/:id', auth, async (req, res) => {
-    const { error } = await supabaseAdmin
-        .from('transactions')
-        .delete()
-        .eq('id', req.params.id)
-        .eq('user_id', req.user.id)
-    if (error) return res.status(500).json({ message: error.message })
-    res.json({ success: true })
+// ── Start ─────────────────────────────────────────────────────────
+app.listen(PORT, () => {
+    console.log(`✓ fintrack API running on http://localhost:${PORT}`)
 })
-
-// ── Settings ─────────────────────────────────────────────────────
-app.get('/api/settings', auth, async (req, res) => {
-    const { data } = await supabaseAdmin
-        .from('settings')
-        .select('*')
-        .eq('user_id', req.user.id)
-        .single()
-    res.json(data || { income: 0, savings_goal: 0 })
-})
-
-app.post('/api/settings', auth, async (req, res) => {
-    const { income, savings_goal } = req.body
-    const { data, error } = await supabaseAdmin
-        .from('settings')
-        .upsert({ user_id: req.user.id, income: Number(income), savings_goal: Number(savings_goal) }, { onConflict: 'user_id' })
-        .select()
-        .single()
-    if (error) return res.status(500).json({ message: error.message })
-    res.json(data)
-})
-
-app.listen(process.env.PORT || 5000, () => console.log('Server running on port', process.env.PORT || 5000))
