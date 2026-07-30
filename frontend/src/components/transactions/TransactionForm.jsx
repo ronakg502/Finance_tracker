@@ -28,7 +28,7 @@ export default function TransactionForm({ onAdd }) {
     return (
         <div className="glass" style={{ padding: 24 }}>
             <h3 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, marginBottom: 20, fontSize: '1rem' }}>Add Expense</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="grid-form-col">
                 <Input label="Amount (₹)" type="number" placeholder="0" value={form.amount} onChange={e => set('amount', e.target.value)} />
                 <Input label="Item / Description" type="text" placeholder="e.g. Lunch" value={form.item} onChange={e => set('item', e.target.value)} />
 
